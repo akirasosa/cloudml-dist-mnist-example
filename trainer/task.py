@@ -21,6 +21,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 from tensorflow.contrib.learn.python.learn.utils import (
     saved_model_export_utils)
 
+# import model
 import model
 
 
@@ -39,10 +40,12 @@ def generate_experiment_fn(data_dir,
             eval_input_fn=model.get_input_fn(
                 filename=os.path.join(data_dir, 'test.tfrecords'),
                 batch_size=eval_batch_size),
-            export_strategies=[saved_model_export_utils.make_export_strategy(
-                model.serving_input_fn,
-                default_output_alternative_key=None,
-                exports_to_keep=1)],
+            export_strategies=[
+                saved_model_export_utils.make_export_strategy(
+                    model.serving_input_fn,
+                    default_output_alternative_key=None,
+                    exports_to_keep=1)
+            ],
             train_steps=train_steps,
             eval_steps=eval_steps,
             **experiment_args

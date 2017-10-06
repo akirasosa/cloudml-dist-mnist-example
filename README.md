@@ -85,8 +85,8 @@ After the training, the summary data is stored in
 `${BUCKET}/${JOB_ID}` and you can visualize them with TensorBoard.
 First, run the following command on the CloudShell to start TensorBoard.
 
-```
-$ tensorboard --port 8080 --logdir ${BUCKET}/${JOB_ID}
+```bash
+tensorboard --port 8080 --logdir ${BUCKET}/${JOB_ID}
 ```
 
 Select 'Preview on port 8080' from Web preview menu in the top-left corner

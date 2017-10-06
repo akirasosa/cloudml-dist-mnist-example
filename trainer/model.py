@@ -1,24 +1,11 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.estimator.model_fn import ModeKeys as Modes
+
+from trainer.lenet import LeNet
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -61,45 +48,20 @@ def _cnn_model_fn(features, labels, mode):
     # Input Layer
     input_layer = tf.reshape(features['inputs'], [-1, 28, 28, 1])
 
-    # Convolutional Layer #1
-    conv1 = tf.layers.conv2d(
-        inputs=input_layer,
-        filters=32,
-        kernel_size=[5, 5],
-        padding='same',
-        activation=tf.nn.relu)
-
-    # Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-
-    # Convolutional Layer #2 and Pooling Layer #2
-    conv2 = tf.layers.conv2d(
-        inputs=pool1,
-        filters=64,
-        kernel_size=[5, 5],
-        padding='same',
-        activation=tf.nn.relu)
-    pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-
-    # Dense Layer
-    pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
-    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(
-        inputs=dense, rate=0.4, training=(mode == Modes.TRAIN))
-
-    # Logits Layer
-    logits = tf.layers.dense(inputs=dropout, units=10)
+    net = LeNet({'data': input_layer})
+    outputs = net.get_output()
 
     # Define operations
     if mode in (Modes.PREDICT, Modes.EVAL):
-        predicted_indices = tf.argmax(input=logits, axis=1)
-        probabilities = tf.nn.softmax(logits, name='softmax_tensor')
+        # predicted_indices = tf.argmax(input=logits, axis=1)
+        probabilities = outputs
+        predicted_indices = tf.argmax(input=outputs, axis=1)
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         global_step = tf.contrib.framework.get_or_create_global_step()
         label_indices = tf.cast(labels, tf.int32)
         loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=tf.one_hot(label_indices, depth=10), logits=logits)
+            onehot_labels=tf.one_hot(label_indices, depth=10), logits=outputs)
         tf.summary.scalar('OptimizeLoss', loss)
 
     if mode == Modes.PREDICT:
