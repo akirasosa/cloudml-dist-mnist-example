@@ -1,13 +1,13 @@
-from kaffe.tensorflow import Network
+import tensorflow.contrib.slim as slim
 
 
-class LeNet(Network):
-    def setup(self):
-        (self.feed('data')
-         .conv(5, 5, 20, 1, 1, padding='VALID', relu=False, name='conv1')
-         .max_pool(2, 2, 2, 2, name='pool1')
-         .conv(5, 5, 50, 1, 1, padding='VALID', relu=False, name='conv2')
-         .max_pool(2, 2, 2, 2, name='pool2')
-         .fc(500, name='ip1')
-         .fc(10, relu=False, name='ip2')
-         .softmax(name='prob'))
+def lenet(inputs):
+    net = slim.conv2d(inputs, 20, (5, 5), scope='conv1')
+    net = slim.max_pool2d(net, (2, 2), scope='pool1')
+    net = slim.conv2d(net, 50, (5, 5), scope='conv2')
+    net = slim.max_pool2d(net, (2, 2), scope='pool2')
+    net = slim.flatten(net, scope='flatten3')
+    net = slim.fully_connected(net, 500, scope='fc4')
+    net = slim.fully_connected(net, 10, activation_fn=None, scope='fc5')
+
+    return net

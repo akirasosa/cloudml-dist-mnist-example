@@ -4,8 +4,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.estimator.model_fn import ModeKeys as Modes
+import tensorflow.contrib.slim as slim
 
-from trainer.lenet import LeNet
+from trainer.lenet import lenet
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -46,46 +47,39 @@ def get_input_fn(filename, batch_size=100):
 
 def _cnn_model_fn(features, labels, mode):
     # Input Layer
-    input_layer = tf.reshape(features['inputs'], [-1, 28, 28, 1])
-
-    net = LeNet({'data': input_layer})
-    outputs = net.get_output()
-
-    # Define operations
-    if mode in (Modes.PREDICT, Modes.EVAL):
-        # predicted_indices = tf.argmax(input=logits, axis=1)
-        probabilities = outputs
-        predicted_indices = tf.argmax(input=outputs, axis=1)
+    inputs = tf.reshape(features['inputs'], [-1, 28, 28, 1])
+    predictions = lenet(inputs)
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         global_step = tf.contrib.framework.get_or_create_global_step()
-        label_indices = tf.cast(labels, tf.int32)
-        loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=tf.one_hot(label_indices, depth=10), logits=outputs)
-        tf.summary.scalar('OptimizeLoss', loss)
+
+        one_hot_labels = slim.one_hot_encoding(labels, 10)
+        loss = tf.losses.softmax_cross_entropy(one_hot_labels, predictions)
+        tf.summary.scalar('Loss', loss)
+
+        if mode == Modes.TRAIN:
+            optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+            train_op = optimizer.minimize(loss, global_step=global_step)
+            return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+
+        if mode == Modes.EVAL:
+            eval_metric_ops = {
+                'accuracy': tf.metrics.accuracy(tf.cast(labels, tf.int32),
+                                                tf.argmax(input=predictions, axis=1))
+            }
+            return tf.estimator.EstimatorSpec(
+                mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
     if mode == Modes.PREDICT:
         predictions = {
-            'classes': predicted_indices,
-            'probabilities': probabilities
+            'classes': tf.argmax(input=predictions, axis=1),
+            'probabilities': slim.softmax(predictions),
         }
         export_outputs = {
             'prediction': tf.estimator.export.PredictOutput(predictions)
         }
         return tf.estimator.EstimatorSpec(
             mode, predictions=predictions, export_outputs=export_outputs)
-
-    if mode == Modes.TRAIN:
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-        train_op = optimizer.minimize(loss, global_step=global_step)
-        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
-
-    if mode == Modes.EVAL:
-        eval_metric_ops = {
-            'accuracy': tf.metrics.accuracy(label_indices, predicted_indices)
-        }
-        return tf.estimator.EstimatorSpec(
-            mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
 
 def build_estimator(model_dir):
